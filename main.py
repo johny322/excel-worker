@@ -3,18 +3,51 @@ import os
 import pandas as pd
 
 
-class Exel:
-    # def __init__(self, data, main_key):
-    #     self.data = data
-    #     self.main_key = main_key
+class Excel:
+    def create_writer(self, path):
+        """
+        Создает writer для работы с листами экселя
 
-    def change_data(self, data):
+        :param path: путь для сохранения будущего файла
+        """
+        self.writer = pd.ExcelWriter(path)
+
+    def add_to_sheet(self, sheet_name):
+        """
+        Создает df из self.data и добавляет его на лист sheet_name.
+        После добавления надо задать начальное значение self.data для сохранения на другие листы.
+
+        :param sheet_name: имя листа в экселе
+        :return:
+        """
+        self.check_data()
+        df = pd.DataFrame(self.data)
+        df.to_excel(self.writer, sheet_name=sheet_name, index=False)
+
+    def writer_save(self):
+        """
+        Сохраняет файл с помощью writer по пути path из метода self.create_writer(path)
+        """
+        self.writer.save()
+
+    def set_data(self, data):
         self.data = data
 
-    def change_main_key(self, main_key):
+    def set_main_key(self, main_key):
         self.main_key = main_key
 
     def add_several_values(self, values, name: str):
+        """
+        Добавляет значения из массива в столбцы с названием и порядковым номером.
+
+        Пример:
+
+        add_several_values(['qwe', 'qwe1', 'qwe2', 'name']
+        Добавится в столбцы name1 - qwe, name2 - qwe1, name3 - qwe2, если их не было, они создадутся.
+
+        :param values: массив значений
+        :param name: имя столбца для добавления
+        """
         keys = list(self.data.keys())
         p_key = []
         for k in keys:
@@ -36,6 +69,12 @@ class Exel:
                 self.data[f'{name}{i}'].append(None)
 
     def add_key_value(self, key, value):
+        """
+        Добавляет значение в колонку по ключу.
+
+        :param key: ключ для колонки
+        :param value: значение для добавлния
+        """
         keys = list(self.data.keys())
         if key in keys:
             difference = len(self.data[self.main_key]) - len(self.data[key])
@@ -47,6 +86,10 @@ class Exel:
             self.data[key].append(value)
 
     def check_data(self):
+        """
+        Проверяет данные, чтобы в каждом столбце было одинаковое количество значений, если не так, то добавит None.
+
+        """
         keys = list(self.data.keys())
         main_len = len(self.data[self.main_key])
         for key in keys:
@@ -55,21 +98,44 @@ class Exel:
             if diff > 0:
                 self.data[key].extend([None] * diff)
 
-    def write_exel(self, path):
+    def write_exel(self, path, beautiful=(False, 'max')):
+        """
+        Записывает файл по пути.
+
+        :param beautiful:
+        :param path: путь для записи (some_path.xlsx)
+        :return: абсолютный путь до файла
+        """
         self.check_data()
         df = pd.DataFrame(self.data)
-        df.to_excel(path, index=False)
+        if beautiful[0]:
+            bt_type = beautiful[1]
+            writer = pd.ExcelWriter(path)
+            df.to_excel(writer, sheet_name='Sheet1', index=False)
+            for column in df:
+                if bt_type == 'max':
+                    column_width = max(df[column].astype(str).map(len).max(), len(column))
+                else:
+                    column_width = len(column) + 5
+                col_idx = df.columns.get_loc(column)
+                writer.sheets['Sheet1'].set_column(col_idx, col_idx, column_width)
+            writer.save()
+        else:
+            df.to_excel(path, index=False)
         return os.path.abspath(path)
-        # writer = pd.ExcelWriter(path)
-        # df.to_excel(writer, sheet_name='1', index=False)
-        # for column in df:
-        #     column_width = max(df[column].astype(str).map(len).max(), len(column))
-        #     col_idx = df.columns.get_loc(column)
-        #     writer.sheets['1'].set_column(col_idx, col_idx, column_width)
-        # writer.save()
+
 
     @staticmethod
     def beautiful_exel(open_path, save_path, sheet_name='Sheet1', bt_type='max'):
+        """
+        
+
+        :param open_path:
+        :param save_path:
+        :param sheet_name:
+        :param bt_type:
+        :return:
+        """
         df = pd.read_excel(open_path)
         writer = pd.ExcelWriter(save_path)
         df.to_excel(writer, sheet_name=sheet_name, index=False)
