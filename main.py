@@ -36,14 +36,14 @@ class Excel:
     def set_main_key(self, main_key):
         self.main_key = main_key
 
-    def add_several_values(self, values, name: str):
+    def add_several_values(self, values: list, name: str):
         """
         Добавляет значения из массива в столбцы с названием и порядковым номером.
 
         Пример:
 
-        add_several_values(['qwe', 'qwe1', 'qwe2', 'name']
-        Добавится в столбцы name1 - qwe, name2 - qwe1, name3 - qwe2, если их не было, они создадутся.
+        add_several_values(['value1', 'value2', 'value3', 'name']
+        Добавится в столбцы name1 - value1, name2 - value2, name3 - value3, если их не было, они создадутся.
 
         :param values: массив значений
         :param name: имя столбца для добавления
@@ -80,6 +80,10 @@ class Excel:
             difference = len(self.data[self.main_key]) - len(self.data[key])
             if difference > 1:
                 self.data[key].extend([None] * (difference - 1))
+            # if difference < 0:
+            #     self.add_several_values([value], key)
+            # if difference - 1 < 0 and key != self.main_key:
+            #     self.add_several_values([value], key)
             self.data[key].append(value)
         else:
             self.data[key] = [None] * (len(self.data[self.main_key]) - 1)
@@ -97,6 +101,8 @@ class Excel:
             diff = main_len - key_len
             if diff > 0:
                 self.data[key].extend([None] * diff)
+            if diff < 0:
+                self.data[key] = self.data[key][:diff]
 
     def write_exel(self, path, beautiful=(False, 'max')):
         """
@@ -123,6 +129,11 @@ class Excel:
         else:
             df.to_excel(path, index=False)
         return os.path.abspath(path)
+
+    def get_df(self):
+        self.check_data()
+        df = pd.DataFrame(self.data)
+        return df
 
 
     @staticmethod
@@ -159,3 +170,4 @@ class Excel:
             df = df.drop_duplicates(subset=subset, keep='first')
         df.to_excel(final_name, index=False)
         return os.path.abspath(final_name)
+
