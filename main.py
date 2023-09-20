@@ -1,4 +1,6 @@
+import datetime
 import os
+import re
 
 import pandas as pd
 
@@ -36,6 +38,10 @@ class Excel:
     def set_main_key(self, main_key):
         self.main_key = main_key
 
+    @staticmethod
+    def create_hyperlink(url: str, text: str):
+        return f'=HYPERLINK("{url}", "{text}")'
+
     def add_several_values(self, values: list, name: str):
         """
         Добавляет значения из массива в столбцы с названием и порядковым номером.
@@ -51,7 +57,10 @@ class Excel:
         keys = list(self.data.keys())
         p_key = []
         for k in keys:
-            if name in k:
+            pattern = name + r'\d{1,}'
+            match = re.match(pattern, k)
+            if match:
+                # if name in k:
                 p_key.append(k)
         if len(values) >= len(p_key):
             for i in range(len(p_key) + 1, len(values) + 1):
@@ -104,16 +113,56 @@ class Excel:
             if diff < 0:
                 self.data[key] = self.data[key][:diff]
 
-    def write_exel(self, path, beautiful=(False, 'max')):
+    def write_exel(self, path, beautiful=(True, 'max'), now_date=True, ignore_urls=False):
         """
         Записывает файл по пути.
 
+        :param now_date:
         :param beautiful:
         :param path: путь для записи (some_path.xlsx)
         :return: абсолютный путь до файла
         """
+        if now_date:
+            now = datetime.datetime.now().strftime("%d_%m_%Y_%H_%M")
+            file_type = os.path.splitext(path)[-1]
+            name = os.path.splitext(path)[0]
+            path = name + f'_{now}' + file_type
         self.check_data()
         df = pd.DataFrame(self.data)
+        if beautiful[0]:
+            bt_type = beautiful[1]
+            if ignore_urls:
+                writer = pd.ExcelWriter(path, options={'strings_to_urls': False})
+            else:
+                writer = pd.ExcelWriter(path)
+            df.to_excel(writer, sheet_name='Sheet1', index=False)
+            for column in df:
+                if bt_type == 'max':
+                    column_width = max(df[column].astype(str).map(len).max(), len(column))
+                else:
+                    column_width = len(column) + 5
+                col_idx = df.columns.get_loc(column)
+                writer.sheets['Sheet1'].set_column(col_idx, col_idx, column_width)
+            writer.save()
+        else:
+            df.to_excel(path, index=False)
+        return os.path.abspath(path)
+
+    @staticmethod
+    def write_exel_from_df(df, path, beautiful=(True, 'max'), now_date=False):
+        """
+        Записывает файл по пути.
+
+        :param now_date:
+        :param beautiful:
+        :param path: путь для записи (some_path.xlsx)
+        :return: абсолютный путь до файла
+        """
+        if now_date:
+            now = datetime.datetime.now().strftime("%d_%m_%Y_%H_%M")
+            file_type = os.path.splitext(path)[-1]
+            name = os.path.splitext(path)[0]
+            path = name + f'_{now}' + file_type
         if beautiful[0]:
             bt_type = beautiful[1]
             writer = pd.ExcelWriter(path)
@@ -135,11 +184,10 @@ class Excel:
         df = pd.DataFrame(self.data)
         return df
 
-
     @staticmethod
     def beautiful_exel(open_path, save_path, sheet_name='Sheet1', bt_type='max'):
         """
-        
+
 
         :param open_path:
         :param save_path:
@@ -161,13 +209,35 @@ class Excel:
         return os.path.abspath(save_path)
 
     @staticmethod
-    def concat_files(files: list, final_name: str, drop_duplicates: bool = False, subset=''):
+    def concat_files(files: list, final_name: str, drop_duplicates: bool = False, subset='', keep='first', writer_options=None):
         con_files = []
         for file in files:
             con_files.append(pd.read_excel(file))
         df = pd.concat(con_files, ignore_index=True)
         if drop_duplicates:
-            df = df.drop_duplicates(subset=subset, keep='first')
-        df.to_excel(final_name, index=False)
+            df = df.drop_duplicates(subset=subset, keep=keep)
+        if writer_options:
+            writer = pd.ExcelWriter(final_name, options=writer_options)
+        else:
+            writer = pd.ExcelWriter(final_name)
+        df.to_excel(writer, sheet_name='Sheet1', index=False)
+        writer.save()
         return os.path.abspath(final_name)
 
+    @staticmethod
+    def drop_duplicates(read_path, subset, save_path='', writer_options=None):
+        if not save_path:
+            # save_path = read_path
+            file_type = os.path.splitext(read_path)[-1]
+            name = os.path.splitext(read_path)[0]
+            save_path = f'{name}_no_dub{file_type}'
+        if writer_options:
+            writer = pd.ExcelWriter(save_path, options=writer_options)
+        else:
+            writer = pd.ExcelWriter(save_path)
+
+        df = pd.read_excel(read_path)
+        df = df.drop_duplicates(subset=subset, keep='first')
+        df.to_excel(writer, sheet_name='Sheet1', index=False)
+        writer.save()
+        # df.to_excel(save_path, index=False)
