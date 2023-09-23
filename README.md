@@ -7,5 +7,7 @@ useful functions for working with excel files:
 
 ## Examples
 ```
+from excel_worker import Excel
+
 ex = Excel()
 ```
